@@ -7,13 +7,20 @@ import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { applySecurityHeaders, assertProductionEnvironment, cleanupRateLimitStores, registrationRateLimit, sameOriginMutation } from "./security";
 
 async function startServer() {
+  assertProductionEnvironment();
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  applySecurityHeaders(app);
+  // SAHAYAT has no upload endpoint; keep request bodies intentionally small.
+  app.use(express.json({ limit: "100kb", strict: true }));
+  app.use(express.urlencoded({ limit: "20kb", extended: false }));
+  app.use("/api/trpc", sameOriginMutation);
+  app.use("/api/trpc/registration.submit", registrationRateLimit);
+  const cleanupTimer = setInterval(cleanupRateLimitStores, 15 * 60 * 1000);
+  cleanupTimer.unref();
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
   app.get("/api/platform/config.js", (_req, res) => {
     res.set("Cache-Control", "no-store").type("application/javascript").send(publicPlatformScript());

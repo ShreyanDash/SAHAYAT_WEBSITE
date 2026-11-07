@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import {
   Activity,
   ArrowDownRight,
@@ -22,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import Lenis from "lenis";
+import { trpc } from "@/lib/trpc";
 
 const DETAIL_IMAGE = "/manus-storage/async-images/McTG4xEtu1AlnNXqn9y0Bq/image-2.webp";
 const CAREGIVER_IMAGE = "/manus-storage/async-images/McTG4xEtu1AlnNXqn9y0Bq/image-3.webp";
@@ -100,9 +102,18 @@ function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeMode, setActiveMode] = useState("signal");
   const [showDetails, setShowDetails] = useState(false);
+  const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
   const [heroScroll, setHeroScroll] = useState(0);
   const [journeyProgress, setJourneyProgress] = useState(0);
   const journeyRef = useRef<HTMLElement | null>(null);
+  const registration = trpc.registration.submit.useMutation();
+
+  const handleRegistration = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!consent) return;
+    registration.mutate({ email, consent: true });
+  };
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -326,7 +337,7 @@ function Home() {
         <h2>Ready when<br /><span>you can’t be.</span></h2>
         <p>Join the first circle of people building a safer everyday.</p>
         <button className="button button--lime" onClick={() => setShowDetails(true)}>Register your interest <ArrowRight size={16} /></button>
-        <div className="footer-meta"><span>© 2026 SAHAYAT</span><span>Intelligent safety wearable / India</span><button onClick={() => scrollToId("top")}>Back to top <ChevronDown size={14} className="rotate-180" /></button></div>
+        <div className="footer-meta"><span>© 2026 SAHAYAT</span><span>Intelligent safety wearable / India</span><a href="/privacy">Privacy policy</a><a href="mailto:sahayatcare@gmail.com">sahayatcare@gmail.com</a><button onClick={() => scrollToId("top")}>Back to top <ChevronDown size={14} className="rotate-180" /></button></div>
       </section>
 
       {showDetails && <div className="details-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -334,7 +345,7 @@ function Home() {
         <div className="details-panel">
           <button className="modal-close" onClick={() => setShowDetails(false)} aria-label="Close details"><X size={19} /></button>
           <div className="details-panel-visual"><BandVisual compact /><span>SAHAYAT ONE / SYSTEM VIEW</span></div>
-          <div className="details-panel-copy"><span className="eyebrow"><span className="eyebrow-dot" /> Full system overview</span><h2 id="modal-title">A calmer kind<br /><span>of connected.</span></h2><p>SAHAYAT is an envisioned product concept. We’re building the safety layer now — with a screenless band, a dedicated Android companion and an alert system designed around caregivers.</p><div className="modal-form"><label htmlFor="email">Get the early access note</label><div className="email-row"><input id="email" type="email" placeholder="you@email.com" /><button className="button button--lime" onClick={() => setShowDetails(false)}>Notify me <ArrowRight size={15} /></button></div></div><small>No spam. Just the occasional meaningful update.</small></div>
+          <div className="details-panel-copy"><span className="eyebrow"><span className="eyebrow-dot" /> Full system overview</span><h2 id="modal-title">A calmer kind<br /><span>of connected.</span></h2><p>SAHAYAT is an envisioned product concept. We’re building the safety layer now, with a screenless band, a dedicated Android companion and an alert system designed around caregivers.</p><form className="modal-form" onSubmit={handleRegistration}><label htmlFor="email">Get the early access note</label><div className="email-row"><input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@email.com" autoComplete="email" required /><button className="button button--lime" type="submit" disabled={!consent || registration.isPending}>{registration.isPending ? "Sending…" : "Notify me"} <ArrowRight size={15} /></button></div><label className="consent-row"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Send me occasional SAHAYAT product updates. I can unsubscribe anytime.</span></label>{registration.data?.message && <p className="form-message form-message--success" role="status">{registration.data.message}</p>}{registration.error && <p className="form-message form-message--error" role="alert">{registration.error.message}</p>}</form><small>No spam. Just the occasional meaningful update.</small></div>
         </div>
       </div>}
     </main>

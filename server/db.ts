@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertInterestRegistration, InsertUser, interestRegistrations, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -88,4 +88,35 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getInterestRegistrationByEmail(email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+
+  const result = await db.select().from(interestRegistrations).where(eq(interestRegistrations.email, email)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createInterestRegistration(email: string): Promise<{ isNew: boolean; registration: Awaited<ReturnType<typeof getInterestRegistrationByEmail>> }> {
+  const existing = await getInterestRegistrationByEmail(email);
+  if (existing) return { isNew: false, registration: existing };
+
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+
+  try {
+    const values: InsertInterestRegistration = { email, consentedAt: new Date() };
+    await db.insert(interestRegistrations).values(values);
+    return { isNew: true, registration: await getInterestRegistrationByEmail(email) };
+  } catch (error) {
+    // A concurrent duplicate submission can win the unique-email race.
+    const concurrent = await getInterestRegistrationByEmail(email);
+    if (concurrent) return { isNew: false, registration: concurrent };
+    throw error;
+  }
+}
+
+export async function updateInterestEmailStatus(email: string, status: { confirmationSentAt?: Date; adminNotifiedAt?: Date; lastEmailError?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(interestRegistrations).set(status).where(eq(interestRegistrations.email, email));
+}
