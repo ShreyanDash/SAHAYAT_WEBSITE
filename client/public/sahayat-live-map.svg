@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">SAHAYAT live location map</title>
+  <desc id="desc">A dark map with street lines, an active route and a lime location marker.</desc>
+  <rect width="640" height="420" fill="#172018"/>
+  <path d="M-20 100 C120 35 190 170 300 95 S505 38 670 92" fill="none" stroke="#2b3a2d" stroke-width="42" opacity=".8"/>
+  <path d="M-15 300 C100 250 180 355 280 270 S485 238 660 335" fill="none" stroke="#243326" stroke-width="54" opacity=".78"/>
+  <g fill="none" stroke="#667765" stroke-width="3" opacity=".48">
+    <path d="M0 54 L640 345"/><path d="M-20 180 L600 -20"/><path d="M45 420 L520 0"/><path d="M150 420 L640 100"/>
+    <path d="M0 250 L640 70"/><path d="M270 420 L480 0"/><path d="M15 12 L590 420"/>
+  </g>
+  <g fill="none" stroke="#b5c1b0" stroke-width="1.5" opacity=".26">
+    <path d="M0 86 L640 377"/><path d="M0 223 L640 43"/><path d="M92 420 L580 0"/><path d="M210 420 L615 120"/>
+  </g>
+  <path d="M84 328 C160 296 210 335 276 280 S390 179 485 202" fill="none" stroke="#d9f36a" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 7"/>
+  <circle cx="485" cy="202" r="32" fill="#d9f36a" opacity=".1"/><circle cx="485" cy="202" r="20" fill="#d9f36a" opacity=".16"/><circle cx="485" cy="202" r="9" fill="#d9f36a"/>
+  <path d="M485 181 C474 181 466 189 466 200 C466 216 485 235 485 235 C485 235 504 216 504 200 C504 189 496 181 485 181Z" fill="#d9f36a" opacity=".92"/>
+  <circle cx="485" cy="199" r="5" fill="#172018"/>
+  <text x="28" y="39" fill="#d9f36a" font-family="monospace" font-size="13" letter-spacing="2">LIVE LOCATION</text>
+  <text x="28" y="63" fill="#a9b5a5" font-family="monospace" font-size="10" letter-spacing="1">CAREGIVER ROUTE ACTIVE</text>
+</svg>
