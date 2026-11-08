@@ -1,25 +1,12 @@
-import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { createInterestRegistration, updateInterestEmailStatus } from "./db";
 import { sendRegistrationEmails } from "./email";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
-  auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
-    }),
-  }),
 
   registration: router({
     submit: publicProcedure
@@ -41,11 +28,17 @@ export const appRouter = router({
           delivery = { confirmationSent: false, adminNotified: false, errors: ["service"] };
         }
         const now = new Date();
-        await updateInterestEmailStatus(input.email, {
-          ...(delivery.confirmationSent ? { confirmationSentAt: now } : {}),
-          ...(delivery.adminNotified && registration.isNew ? { adminNotifiedAt: now } : {}),
-          lastEmailError: delivery.errors.length > 0 ? `Delivery issue: ${delivery.errors.join(", ")}` : null,
-        });
+        try {
+          await updateInterestEmailStatus(input.email, {
+            ...(delivery.confirmationSent ? { confirmationSentAt: now } : {}),
+            ...(delivery.adminNotified && registration.isNew ? { adminNotifiedAt: now } : {}),
+            lastEmailError: delivery.errors.length > 0 ? `Delivery issue: ${delivery.errors.join(", ")}` : null,
+          });
+        } catch (error) {
+          // Status tracking is best-effort. The registration is already persisted in PostgreSQL;
+          // do not fail the visitor's registration if status update logging encounters an error.
+          console.error("[Registration] Could not update delivery status:", error);
+        }
 
         if (!delivery.confirmationSent) {
           return {
@@ -53,7 +46,7 @@ export const appRouter = router({
             saved: true,
             alreadyRegistered: !registration.isNew,
             confirmationSent: false,
-            message: "Your interest is saved. We will send the confirmation email shortly.",
+            message: "Your interest has been saved, but we couldn't send the confirmation email right now. Please try again later if you need another confirmation.",
           } as const;
         }
 

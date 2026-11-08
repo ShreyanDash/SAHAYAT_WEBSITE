@@ -1,14 +1,12 @@
-// Only these public values may reach the browser. Never serialize process.env.
-export function publicPlatformConfig(env: NodeJS.ProcessEnv = process.env) {
-  return {
-    projectId: env.MANUS_PROJECT_ID ?? "",
-    oauthPortalUrl: env.MANUS_OAUTH_PORTAL_URL ?? "",
-    apiUrl: env.MANUS_API_URL ?? "",
-    apiBrowserKey: env.MANUS_API_BROWSER_KEY ?? "",
-  };
+// Public runtime configuration injected into the browser.
+// No secrets — this script is served without authentication.
+export function publicPlatformConfig(_env: NodeJS.ProcessEnv = process.env) {
+  // All Manus-specific values removed. Return an empty config object so any
+  // legacy references to window.__APP_CONFIG__ degrade gracefully.
+  return {};
 }
 
-export function publicPlatformScript(env: NodeJS.ProcessEnv = process.env): string {
-  const json = JSON.stringify(publicPlatformConfig(env)).replaceAll("<", "\\u003c");
-  return `window.__MANUS_CONFIG__=${json};`;
+export function publicPlatformScript(_env: NodeJS.ProcessEnv = process.env): string {
+  // No-op script — the application no longer relies on a runtime platform config.
+  return "/* app config */";
 }

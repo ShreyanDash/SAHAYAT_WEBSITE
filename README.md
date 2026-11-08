@@ -1,14 +1,25 @@
 # SAHAYAT — Emergency Safety Wearable
 
-React / Express / tRPC / Drizzle starter, adapted from the Sandbox web-db-user template.
+Independent production architecture:
+- Frontend + Backend: Render
+- Database: Supabase PostgreSQL (via Drizzle ORM & postgres-js)
+- Email: Gmail SMTP
+- Source control: GitHub
+
+## Available Commands
 
 - `pnpm dev`: development server; honors `PORT` (default 3000).
-- `pnpm build` / `pnpm start`: build and serve `dist/index.js` and `dist/public/`.
-- `pnpm db:migrate`: apply checked-in migrations. `pnpm db:push`: generate and apply new schema changes.
-- `pnpm check` / `pnpm test`: types and application tests.
+- `pnpm build`: build client assets and server bundle to `dist/`.
+- `pnpm start`: start the production server with `node dist/index.js`.
+- `pnpm check`: TypeScript validation across the codebase.
+- `pnpm test`: run application test suite via Vitest.
+- `pnpm security:audit`: verify no secrets or credentials are hardcoded.
+- `pnpm db:migrate`: apply checked-in PostgreSQL migrations.
+- `pnpm db:push`: generate and apply schema updates.
 
-Start with the Webdev skill's default-template guide. Platform login, storage, payments and service contracts live in its shared references; read the relevant capability before extending its helper.
+## Environment Variables
 
-`server/_core/publicConfig.ts` exposes only named public runtime values. Private keys stay server-side. The platform serves managed `/manus-storage/` assets; the application does not register a second proxy.
-
-Platform configuration is readable and editable through `webdev.config`. Default settings are initial values, not enforced constraints. The agent may modify the files, commands and configuration or follow the flexible guide for another stack.
+- `DATABASE_URL`: Supabase PostgreSQL connection string.
+- `GMAIL_APP_PASSWORD`: Gmail App Password for SMTP transactional emails.
+- `PORT`: Server listening port (default: 3000, provided automatically by Render).
+- `NODE_ENV`: Set to `production` in deployment.

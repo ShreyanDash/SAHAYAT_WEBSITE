@@ -1,24 +1,66 @@
 import { trpc } from "@/lib/trpc";
-import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCClientError } from "@trpc/client";
+import { httpBatchLink } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { startLogin } from "./const";
 import "./index.css";
 
 const queryClient = new QueryClient();
 
-const redirectToLoginIfUnauthorized = (error: unknown) => {
-  if (!(error instanceof TRPCClientError)) return;
-  if (typeof window === "undefined") return;
+function getRequestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
 
-  const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
+async function fetchTrpcResponse(input: RequestInfo | URL, init?: RequestInit) {
+  const response = await globalThis.fetch(input, init);
+  const body = await response.text();
 
-  if (!isUnauthorized) return;
+  try {
+    JSON.parse(body);
+  } catch {
+    const requestPath = getRequestUrl(input);
+    const message = response.status === 404
+      ? "The subscription service is unavailable. Please try again later."
+      : "The subscription service returned an invalid response. Please try again later.";
+    console.error("[API] Expected JSON from tRPC endpoint", {
+      requestPath,
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+    });
 
-  startLogin();
+    return new Response(JSON.stringify([{
+      error: {
+        json: {
+          message,
+          code: -32603,
+          data: {
+            code: "INTERNAL_SERVER_ERROR",
+            httpStatus: response.status || 502,
+            path: requestPath,
+          },
+        },
+      },
+    }]), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set("content-type", "application/json");
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+const redirectToLoginIfUnauthorized = (_error: unknown) => {
+  // Authentication is not used in the independent deployment.
+  // This handler is kept as a stub for future use.
 };
 
 queryClient.getQueryCache().subscribe(event => {
@@ -43,27 +85,10 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
-        // Preview auto-login fallback: when the browser blocks iframe cookies
-        // (Safari ITP / private browsing / WebView), the runtime mirrors the
-        // session into sessionStorage so we can forward it as a Bearer token.
-        // The regular OAuth cookie flow keeps working and takes priority server-side.
-        try {
-          const raw = sessionStorage.getItem("manus-cookie");
-          if (raw) {
-            const prefix = `${COOKIE_NAME}=`;
-            const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
-            const token = pair?.trim().slice(prefix.length);
-            if (token) {
-              return { Authorization: `Bearer ${token}` };
-            }
-          }
-        } catch {
-          // sessionStorage unavailable
-        }
         return {};
       },
       fetch(input, init) {
-        return globalThis.fetch(input, {
+        return fetchTrpcResponse(input, {
           ...(init ?? {}),
           credentials: "include",
         });

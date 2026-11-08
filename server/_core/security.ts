@@ -1,7 +1,11 @@
 import type { Express, Request, RequestHandler, Response } from "express";
 
+/**
+ * In-memory store for rate limiting registration submissions.
+ * Note: This rate limiter is local to the Node.js process and resets when the process restarts or scales.
+ * For this landing page's early-access registration volume, this avoids requiring paid external Redis or KV stores.
+ */
 const registrationAttempts = new Map<string, { count: number; resetAt: number }>();
-const oauthAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function clientKey(req: Request) {
   return req.ip || req.socket.remoteAddress || "unknown";
@@ -35,12 +39,6 @@ export const registrationRateLimit = rateLimitStore(registrationAttempts, {
   message: "Too many registration attempts. Please try again later.",
 });
 
-export const oauthRateLimit = rateLimitStore(oauthAttempts, {
-  windowMs: 10 * 60 * 1000,
-  max: 20,
-  message: "Too many login attempts. Please try again later.",
-});
-
 function requestOrigin(req: Request) {
   const forwardedProto = req.headers["x-forwarded-proto"];
   const forwardedHost = req.headers["x-forwarded-host"];
@@ -68,6 +66,8 @@ export const sameOriginMutation: RequestHandler = (req, res, next) => {
 
 export function applySecurityHeaders(app: Express) {
   app.disable("x-powered-by");
+  // Render operates behind a single reverse proxy layer that sets X-Forwarded-* headers.
+  // Trusting 1 proxy hop ensures req.ip and req.protocol accurately reflect the visitor's origin.
   app.set("trust proxy", 1);
   app.use((_req: Request, res: Response, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -86,7 +86,7 @@ export function applySecurityHeaders(app: Express) {
 export function assertProductionEnvironment() {
   if (process.env.NODE_ENV !== "production") return;
 
-  const required = ["DATABASE_URL", "GMAIL_APP_PASSWORD", "MANUS_JWT_SECRET", "MANUS_PROJECT_ID", "MANUS_OAUTH_API_URL"];
+  const required = ["DATABASE_URL", "GMAIL_APP_PASSWORD"];
   const missing = required.filter(name => !process.env[name]);
   if (missing.length > 0) {
     throw new Error(`Missing required production environment variables: ${missing.join(", ")}`);
@@ -95,7 +95,7 @@ export function assertProductionEnvironment() {
 
 export function cleanupRateLimitStores() {
   const now = Date.now();
-  for (const store of [registrationAttempts, oauthAttempts]) {
+  for (const store of [registrationAttempts]) {
     for (const [key, record] of store) {
       if (record.resetAt <= now) store.delete(key);
     }

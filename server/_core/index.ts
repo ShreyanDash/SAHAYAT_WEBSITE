@@ -1,9 +1,7 @@
 import "dotenv/config";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
-import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -22,10 +20,6 @@ async function startServer() {
   const cleanupTimer = setInterval(cleanupRateLimitStores, 15 * 60 * 1000);
   cleanupTimer.unref();
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
-  app.get("/api/platform/config.js", (_req, res) => {
-    res.set("Cache-Control", "no-store").type("application/javascript").send(publicPlatformScript());
-  });
-  registerOAuthRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",
@@ -34,6 +28,19 @@ async function startServer() {
       createContext,
     })
   );
+  // Keep API failures JSON even when parsing or middleware fails before tRPC.
+  // This prevents the SPA fallback from being mistaken for an API response.
+  app.use("/api/trpc", (_req, res) => {
+    res.status(404).json({ error: "API route not found" });
+  });
+  app.use("/api/trpc", (error: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(error);
+      return;
+    }
+    console.error("[API] tRPC request failed:", error);
+    res.status(500).json({ error: "The API request could not be completed." });
+  });
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
@@ -45,6 +52,23 @@ async function startServer() {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid PORT");
   server.on("error", error => { console.error("Server failed:", error.message); process.exit(1); });
   server.listen(port, "0.0.0.0", () => console.log(`Server listening on port ${port}`));
+
+  const gracefulShutdown = async (signal: string) => {
+    console.log(`[Server] Received ${signal}, closing server...`);
+    clearInterval(cleanupTimer);
+    server.close(async () => {
+      try {
+        const { closeDb } = await import("../db");
+        await closeDb();
+      } catch (err) {
+        console.error("[Server] Error closing database:", err);
+      }
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 }
 
 startServer().catch(error => { console.error(error); process.exit(1); });

@@ -25,8 +25,8 @@ import {
 import Lenis from "lenis";
 import { trpc } from "@/lib/trpc";
 
-const DETAIL_IMAGE = "/manus-storage/async-images/McTG4xEtu1AlnNXqn9y0Bq/image-2.webp";
-const CAREGIVER_IMAGE = "/manus-storage/async-images/McTG4xEtu1AlnNXqn9y0Bq/image-3.webp";
+const DETAIL_IMAGE = "/images/sahayat-detail.webp";
+const CAREGIVER_IMAGE = "/images/sahayat-caregiver.webp";
 const BAND_IMAGE = "/sahayat-band-cutout.png";
 
 const featureCards = [
@@ -104,6 +104,7 @@ function Home() {
   const [showDetails, setShowDetails] = useState(false);
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [heroScroll, setHeroScroll] = useState(0);
   const [journeyProgress, setJourneyProgress] = useState(0);
   const journeyRef = useRef<HTMLElement | null>(null);
@@ -111,8 +112,15 @@ function Home() {
 
   const handleRegistration = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (registration.isPending) return;
     if (!consent) return;
-    registration.mutate({ email, consent: true });
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
+    setEmailError("");
+    registration.mutate({ email: normalizedEmail, consent: true });
   };
 
   useEffect(() => {
@@ -345,7 +353,7 @@ function Home() {
         <div className="details-panel">
           <button className="modal-close" onClick={() => setShowDetails(false)} aria-label="Close details"><X size={19} /></button>
           <div className="details-panel-visual"><BandVisual compact /><span>SAHAYAT ONE / SYSTEM VIEW</span></div>
-          <div className="details-panel-copy"><span className="eyebrow"><span className="eyebrow-dot" /> Full system overview</span><h2 id="modal-title">A calmer kind<br /><span>of connected.</span></h2><p>SAHAYAT is an envisioned product concept. We’re building the safety layer now, with a screenless band, a dedicated Android companion and an alert system designed around caregivers.</p><form className="modal-form" onSubmit={handleRegistration}><label htmlFor="email">Get the early access note</label><div className="email-row"><input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@email.com" autoComplete="email" required /><button className="button button--lime" type="submit" disabled={!consent || registration.isPending}>{registration.isPending ? "Sending…" : "Notify me"} <ArrowRight size={15} /></button></div><label className="consent-row"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Send me occasional SAHAYAT product updates. I can unsubscribe anytime.</span></label>{registration.data?.message && <p className="form-message form-message--success" role="status">{registration.data.message}</p>}{registration.error && <p className="form-message form-message--error" role="alert">{registration.error.message}</p>}</form><small>No spam. Just the occasional meaningful update.</small></div>
+          <div className="details-panel-copy"><span className="eyebrow"><span className="eyebrow-dot" /> Full system overview</span><h2 id="modal-title">A calmer kind<br /><span>of connected.</span></h2><p>SAHAYAT is an envisioned product concept. We’re building the safety layer now, with a screenless band, a dedicated Android companion and an alert system designed around caregivers.</p><form className="modal-form" onSubmit={handleRegistration}><label htmlFor="email">Get the early access note</label><div className="email-row"><input id="email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setEmailError(""); }} placeholder="you@email.com" autoComplete="email" required aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "email-error" : undefined} /><button className="button button--lime" type="submit" disabled={!consent || registration.isPending}>{registration.isPending ? "Sending…" : "Notify me"} <ArrowRight size={15} /></button></div><label className="consent-row"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Send me occasional SAHAYAT product updates. I can unsubscribe anytime.</span></label>{emailError && <p id="email-error" className="form-message form-message--error" role="alert">{emailError}</p>}{registration.data?.message && <p className="form-message form-message--success" role="status">{registration.data.message}</p>}{registration.error && <p className="form-message form-message--error" role="alert">{registration.error.message}</p>}</form><small>No spam. Just the occasional meaningful update.</small></div>
         </div>
       </div>}
     </main>
